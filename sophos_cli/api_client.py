@@ -211,13 +211,23 @@ class SophosAPIClient:
                 for endpoint in endpoints:
                     os_info = endpoint.get("os", {})
                     build = os_info.get("build", "N/A")
+                    last_seen = endpoint.get("lastSeenAt", "N/A")
+
+                    # Format date only (remove time portion)
+                    if last_seen != "N/A":
+                        try:
+                            # Parse ISO format and extract date only
+                            last_seen = last_seen.split("T")[0]
+                        except:
+                            pass  # Keep original if parsing fails
 
                     all_data.append({
                         "tenant_id": tenant_id,
                         "tenant_name": tenant_name,
                         "endpoint_hostname": endpoint.get("hostname", "N/A"),
                         "endpoint_os": os_info.get("name", "N/A"),
-                        "endpoint_os_version": build
+                        "endpoint_os_version": build,
+                        "last_active": last_seen
                     })
             except Exception as e:
                 # Continue with other tenants if one fails

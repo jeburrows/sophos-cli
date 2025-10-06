@@ -95,9 +95,9 @@ The CLI provides an interactive menu with the following options:
 - Shows: Tenant Name, Tenant ID, Data Region, and Status
 - Exports data to `output/sophos_tenants_YYYYMMDD_HHMMSS.csv`
 
-#### 2. List All Endpoints (Active)
+#### 2. List All Endpoints
 - Retrieves all endpoints across all tenants
-- Shows: Tenant Name, Hostname, OS, and OS Build Version
+- Shows: Tenant Name, Hostname, OS, OS Build Version, and Last Active
 - Exports data to `output/sophos_endpoints_YYYYMMDD_HHMMSS.csv`
 - Note: This may take a moment for accounts with many tenants/endpoints
 

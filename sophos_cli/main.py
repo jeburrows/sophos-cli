@@ -19,7 +19,7 @@ def display_menu():
 [bold cyan]Sophos Partner CLI[/bold cyan]
 
 [1] List All Tenants
-[2] List All Endpoints (Active)
+[2] List All Endpoints
 [3] Show Account Health for All Tenants
 [4] Exit
 """
@@ -97,13 +97,15 @@ def list_endpoints(client: SophosAPIClient):
         table.add_column("Hostname", style="magenta", no_wrap=False)
         table.add_column("OS", style="green")
         table.add_column("OS Version", style="yellow", no_wrap=False)
+        table.add_column("Last Active", style="blue", no_wrap=False)
 
         for endpoint in endpoints_data:
             table.add_row(
                 endpoint["tenant_name"],
                 endpoint["endpoint_hostname"],
                 endpoint["endpoint_os"],
-                str(endpoint["endpoint_os_version"])
+                str(endpoint["endpoint_os_version"]),
+                str(endpoint["last_active"])
             )
 
         # Display table
@@ -114,7 +116,7 @@ def list_endpoints(client: SophosAPIClient):
         csv_path = export_to_csv(
             endpoints_data,
             "sophos_endpoints",
-            ["tenant_name", "tenant_id", "endpoint_hostname", "endpoint_os", "endpoint_os_version"]
+            ["tenant_name", "tenant_id", "endpoint_hostname", "endpoint_os", "endpoint_os_version", "last_active"]
         )
         console.print(f"[green]Data exported to: {csv_path}[/green]\n")
 
