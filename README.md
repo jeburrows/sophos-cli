@@ -33,8 +33,8 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ### 2. Clone the repository
 
 ```bash
-git clone <your-repository-url>
-cd Sophos
+git clone https://github.com/jeburrows/sophos-cli.git
+cd sophos-cli
 ```
 
 ### 3. Create a virtual environment and install dependencies
@@ -103,7 +103,7 @@ The CLI provides an interactive menu with the following options:
 
 #### 3. Show Account Health for All Tenants
 - Displays account health check scores for all tenants
-- Shows: Overall Score, Status, Protection Score, Policy Score, Exclusions Score, and Tamper Protection Score
+- Shows: Overall Score, Protection Score, Policy Score, Exclusions Score, Tamper Protection Score, and Firewall Score
 - Exports data to `output/sophos_tenant_health_YYYYMMDD_HHMMSS.csv`
 - Note: This may take a moment for accounts with many tenants
 

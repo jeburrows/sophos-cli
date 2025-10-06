@@ -142,6 +142,7 @@ def show_tenant_health(client: SophosAPIClient):
         table.add_column("Policy", style="yellow", justify="center")
         table.add_column("Exclusions", style="yellow", justify="center")
         table.add_column("Tamper Protection", style="yellow", justify="center")
+        table.add_column("Firewall", style="yellow", justify="center")
 
         for health in health_data:
             table.add_row(
@@ -150,7 +151,8 @@ def show_tenant_health(client: SophosAPIClient):
                 str(health["protection_score"]),
                 str(health["policy_score"]),
                 str(health["exclusions_score"]),
-                str(health["tamper_protection_score"])
+                str(health["tamper_protection_score"]),
+                str(health["firewall_score"])
             )
 
         # Display table
@@ -162,7 +164,7 @@ def show_tenant_health(client: SophosAPIClient):
             health_data,
             "sophos_tenant_health",
             ["tenant_name", "tenant_id", "overall_score", "protection_score",
-             "policy_score", "exclusions_score", "tamper_protection_score"]
+             "policy_score", "exclusions_score", "tamper_protection_score", "firewall_score"]
         )
         console.print(f"[green]Data exported to: {csv_path}[/green]\n")
 

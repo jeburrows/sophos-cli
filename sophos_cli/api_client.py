@@ -313,14 +313,25 @@ class SophosAPIClient:
                 server_tamper = tamper.get("server", {}).get("score", 100)
                 global_tamper = tamper.get("globalDetail", {}).get("score", 100)
 
+                # Network device scores (firewall)
+                network_device = health_data.get("networkDevice", {})
+                firewall = network_device.get("firewall", {})
+                firewall_scores = []
+
+                for check_type, check_data in firewall.items():
+                    if isinstance(check_data, dict) and "score" in check_data:
+                        firewall_scores.append(check_data["score"])
+
+                avg_firewall = sum(firewall_scores) / len(firewall_scores) if firewall_scores else 100
+
                 # Calculate weighted average scores
                 avg_protection = (computer_protection + server_protection) / 2
                 avg_policy = (avg_computer_policy + avg_server_policy) / 2
                 avg_exclusions = (computer_exclusions + server_exclusions + global_exclusions) / 3
                 avg_tamper = (computer_tamper + server_tamper + global_tamper) / 3
 
-                # Calculate overall score
-                overall_score = (avg_protection + avg_policy + avg_exclusions + avg_tamper) / 4
+                # Calculate overall score (including firewall now)
+                overall_score = (avg_protection + avg_policy + avg_exclusions + avg_tamper + avg_firewall) / 5
 
                 all_health_data.append({
                     "tenant_name": tenant_name,
@@ -329,7 +340,8 @@ class SophosAPIClient:
                     "protection_score": round(avg_protection, 1),
                     "policy_score": round(avg_policy, 1),
                     "exclusions_score": round(avg_exclusions, 1),
-                    "tamper_protection_score": round(avg_tamper, 1)
+                    "tamper_protection_score": round(avg_tamper, 1),
+                    "firewall_score": round(avg_firewall, 1)
                 })
             except Exception as e:
                 # Continue with other tenants if one fails
