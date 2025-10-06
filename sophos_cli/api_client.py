@@ -292,10 +292,10 @@ class SophosAPIClient:
 
                 # Protection scores (combine computer and server)
                 protection = endpoint.get("protection", {})
-                computer_protection = protection.get("computer", {}).get("score", 0)
-                server_protection = protection.get("server", {}).get("score", 0)
+                computer_protection = protection.get("computer", {}).get("score") if protection.get("computer", {}).get("total", 0) > 0 else None
+                server_protection = protection.get("server", {}).get("score") if protection.get("server", {}).get("total", 0) > 0 else None
 
-                # Policy scores (get lowest score from all policies)
+                # Policy scores
                 policy = endpoint.get("policy", {})
                 computer_policy_scores = []
                 server_policy_scores = []
@@ -308,20 +308,20 @@ class SophosAPIClient:
                     if isinstance(policy_data, dict) and "score" in policy_data:
                         server_policy_scores.append(policy_data["score"])
 
-                avg_computer_policy = sum(computer_policy_scores) / len(computer_policy_scores) if computer_policy_scores else 100
-                avg_server_policy = sum(server_policy_scores) / len(server_policy_scores) if server_policy_scores else 100
+                avg_computer_policy = sum(computer_policy_scores) / len(computer_policy_scores) if computer_policy_scores else None
+                avg_server_policy = sum(server_policy_scores) / len(server_policy_scores) if server_policy_scores else None
 
                 # Exclusions scores
                 exclusions = endpoint.get("exclusions", {})
-                computer_exclusions = exclusions.get("policy", {}).get("computer", {}).get("score", 100)
-                server_exclusions = exclusions.get("policy", {}).get("server", {}).get("score", 100)
-                global_exclusions = exclusions.get("global", {}).get("score", 100)
+                computer_exclusions = exclusions.get("policy", {}).get("computer", {}).get("score") if exclusions.get("policy", {}).get("computer", {}).get("total", 0) > 0 else None
+                server_exclusions = exclusions.get("policy", {}).get("server", {}).get("score") if exclusions.get("policy", {}).get("server", {}).get("total", 0) > 0 else None
+                global_exclusions = exclusions.get("global", {}).get("score") if "score" in exclusions.get("global", {}) else None
 
                 # Tamper protection scores
                 tamper = endpoint.get("tamperProtection", {})
-                computer_tamper = tamper.get("computer", {}).get("score", 100)
-                server_tamper = tamper.get("server", {}).get("score", 100)
-                global_tamper = tamper.get("globalDetail", {}).get("score", 100)
+                computer_tamper = tamper.get("computer", {}).get("score") if tamper.get("computer", {}).get("total", 0) > 0 else None
+                server_tamper = tamper.get("server", {}).get("score") if tamper.get("server", {}).get("total", 0) > 0 else None
+                global_tamper = tamper.get("globalDetail", {}).get("score") if "score" in tamper.get("globalDetail", {}) else None
 
                 # Network device scores (firewall)
                 network_device = health_data.get("networkDevice", {})
@@ -332,26 +332,40 @@ class SophosAPIClient:
                     if isinstance(check_data, dict) and "score" in check_data:
                         firewall_scores.append(check_data["score"])
 
-                avg_firewall = sum(firewall_scores) / len(firewall_scores) if firewall_scores else 100
+                avg_firewall = sum(firewall_scores) / len(firewall_scores) if firewall_scores else None
 
-                # Calculate weighted average scores
-                avg_protection = (computer_protection + server_protection) / 2
-                avg_policy = (avg_computer_policy + avg_server_policy) / 2
-                avg_exclusions = (computer_exclusions + server_exclusions + global_exclusions) / 3
-                avg_tamper = (computer_tamper + server_tamper + global_tamper) / 3
+                # Calculate weighted average scores (only for components that exist)
+                protection_scores = [s for s in [computer_protection, server_protection] if s is not None]
+                avg_protection = sum(protection_scores) / len(protection_scores) if protection_scores else None
 
-                # Calculate overall score (including firewall now)
-                overall_score = (avg_protection + avg_policy + avg_exclusions + avg_tamper + avg_firewall) / 5
+                # If no protection (no endpoints), then policy, exclusions, and tamper are also N/A
+                if avg_protection is None:
+                    avg_policy = None
+                    avg_exclusions = None
+                    avg_tamper = None
+                else:
+                    policy_scores = [s for s in [avg_computer_policy, avg_server_policy] if s is not None]
+                    avg_policy = sum(policy_scores) / len(policy_scores) if policy_scores else None
+
+                    exclusions_scores = [s for s in [computer_exclusions, server_exclusions, global_exclusions] if s is not None]
+                    avg_exclusions = sum(exclusions_scores) / len(exclusions_scores) if exclusions_scores else None
+
+                    tamper_scores = [s for s in [computer_tamper, server_tamper, global_tamper] if s is not None]
+                    avg_tamper = sum(tamper_scores) / len(tamper_scores) if tamper_scores else None
+
+                # Calculate overall score (only include categories that have data)
+                all_scores = [s for s in [avg_protection, avg_policy, avg_exclusions, avg_tamper, avg_firewall] if s is not None]
+                overall_score = sum(all_scores) / len(all_scores) if all_scores else None
 
                 all_health_data.append({
                     "tenant_name": tenant_name,
                     "tenant_id": tenant_id,
-                    "overall_score": round(overall_score, 1),
-                    "protection_score": round(avg_protection, 1),
-                    "policy_score": round(avg_policy, 1),
-                    "exclusions_score": round(avg_exclusions, 1),
-                    "tamper_protection_score": round(avg_tamper, 1),
-                    "firewall_score": round(avg_firewall, 1)
+                    "overall_score": round(overall_score, 1) if overall_score is not None else "N/A",
+                    "protection_score": round(avg_protection, 1) if avg_protection is not None else "N/A",
+                    "policy_score": round(avg_policy, 1) if avg_policy is not None else "N/A",
+                    "exclusions_score": round(avg_exclusions, 1) if avg_exclusions is not None else "N/A",
+                    "tamper_protection_score": round(avg_tamper, 1) if avg_tamper is not None else "N/A",
+                    "firewall_score": round(avg_firewall, 1) if avg_firewall is not None else "N/A"
                 })
             except Exception as e:
                 # Continue with other tenants if one fails
