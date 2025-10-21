@@ -473,3 +473,98 @@ class SophosAPIClient:
         all_data.sort(key=lambda x: (x.get("tenant_name", "").lower(), x.get("firewall_name", "").lower()))
 
         return all_data
+
+    def get_licenses_for_tenant(self, tenant_id: str, api_host: str) -> List[Dict]:
+        """
+        Get all licenses for a specific tenant
+
+        Args:
+            tenant_id: The tenant ID
+            api_host: The API host URL for the tenant's region (not used for licensing API)
+
+        Returns:
+            list: List of license dictionaries
+        """
+        if not self.access_token:
+            self.authenticate()
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "X-Tenant-ID": tenant_id
+        }
+
+        # Licensing API uses the global endpoint, not regional
+        licensing_url = f"{self.PARTNER_API_BASE}/licenses/v1/licenses"
+
+        response = requests.get(
+            licensing_url,
+            headers=headers
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        # The API returns licenses in "licenses" array, not "items"
+        return data.get("licenses", [])
+
+    def get_all_licenses(self) -> List[Dict]:
+        """
+        Get all licenses across all tenants
+
+        Returns:
+            list: List of dictionaries containing tenant info and license details
+        """
+        tenants = self.get_tenants()
+        all_data = []
+
+        for tenant in tenants:
+            tenant_id = tenant.get("id")
+            tenant_name = tenant.get("name")
+            api_host = tenant.get("apiHost")
+
+            if not tenant_id or not api_host:
+                continue
+
+            try:
+                licenses = self.get_licenses_for_tenant(tenant_id, api_host)
+
+                for license in licenses:
+                    # Only include usage-based licenses (billable)
+                    if license.get("type") != "usage":
+                        continue
+
+                    # Only show licenses with actual usage count > 0
+                    usage = license.get("usage", {})
+                    current = usage.get("current", {})
+                    usage_count = current.get("count", 0)
+
+                    if usage_count == 0:
+                        continue
+
+                    product = license.get("product", {})
+                    product_name = product.get("name", "N/A") if isinstance(product, dict) else "N/A"
+                    product_code = product.get("code", "N/A") if isinstance(product, dict) else "N/A"
+
+                    all_data.append({
+                        "tenant_id": tenant_id,
+                        "tenant_name": tenant_name,
+                        "license_id": license.get("id", "N/A"),
+                        "license_identifier": license.get("licenseIdentifier", "N/A"),
+                        "license_type": license.get("type", "N/A"),
+                        "license_product": product_name,
+                        "license_product_code": product_code,
+                        "license_start": license.get("startDate", "N/A"),
+                        "license_usage_count": usage_count,
+                        "license_usage_date": current.get("date", "N/A"),
+                        "license_perpetual": "Yes" if license.get("perpetual") else "No",
+                        "license_unlimited": "Yes" if license.get("unlimited") else "No"
+                    })
+            except Exception as e:
+                # Continue with other tenants if one fails
+                print(f"Warning: Failed to get licenses for tenant {tenant_name}: {e}")
+                continue
+
+        # Sort by tenant name, then product name
+        all_data.sort(key=lambda x: (x.get("tenant_name", "").lower(), x.get("license_product", "").lower()))
+
+        return all_data

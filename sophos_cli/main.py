@@ -22,7 +22,8 @@ def display_menu():
 [2] List All Endpoints
 [3] Show Account Health for All Tenants
 [4] List All Firewalls
-[5] Exit
+[5] List All Licenses
+[6] Exit
 """
     console.print(Panel(menu_text, box=box.ROUNDED, border_style="cyan"))
 
@@ -225,6 +226,56 @@ def list_firewalls(client: SophosAPIClient):
         console.print(f"[red]Error fetching firewalls: {e}[/red]")
 
 
+def list_licenses(client: SophosAPIClient):
+    """Display all licenses across all tenants and export to CSV"""
+    console.print("\n[yellow]Fetching licenses from all tenants...[/yellow]")
+    console.print("[dim]This may take a moment...[/dim]\n")
+
+    try:
+        licenses_data = client.get_all_licenses()
+
+        if not licenses_data:
+            console.print("[red]No licenses found.[/red]")
+            return
+
+        # Create table for display
+        table = Table(title="Sophos Licenses (Usage-Based)", box=box.ROUNDED)
+        table.add_column("Tenant Name", style="cyan", no_wrap=False)
+        table.add_column("Product", style="green", no_wrap=False)
+        table.add_column("Product Code", style="magenta", no_wrap=False)
+        table.add_column("Usage Count", style="yellow", justify="right")
+        table.add_column("Usage Date", style="white")
+        table.add_column("Start Date", style="white")
+
+        for license in licenses_data:
+            table.add_row(
+                str(license["tenant_name"]),
+                str(license["license_product"]),
+                str(license["license_product_code"]),
+                str(license["license_usage_count"]),
+                str(license["license_usage_date"]),
+                str(license["license_start"])
+            )
+
+        # Display table
+        console.print(table)
+        console.print(f"\n[green]Total licenses: {len(licenses_data)}[/green]")
+
+        # Export to CSV
+        csv_path = export_to_csv(
+            licenses_data,
+            "sophos_licenses",
+            ["tenant_name", "tenant_id", "license_id", "license_identifier",
+             "license_type", "license_product", "license_product_code",
+             "license_usage_count", "license_usage_date", "license_start",
+             "license_perpetual", "license_unlimited"]
+        )
+        console.print(f"[green]Data exported to: {csv_path}[/green]\n")
+
+    except Exception as e:
+        console.print(f"[red]Error fetching licenses: {e}[/red]")
+
+
 def main():
     """Main entry point for the CLI application"""
     console.print("\n[bold cyan]Welcome to Sophos Partner CLI[/bold cyan]\n")
@@ -251,8 +302,8 @@ def main():
             display_menu()
             choice = Prompt.ask(
                 "[bold]Select an option[/bold]",
-                choices=["1", "2", "3", "4", "5"],
-                default="5"
+                choices=["1", "2", "3", "4", "5", "6"],
+                default="6"
             )
 
             if choice == "1":
@@ -264,6 +315,8 @@ def main():
             elif choice == "4":
                 list_firewalls(client)
             elif choice == "5":
+                list_licenses(client)
+            elif choice == "6":
                 console.print("\n[cyan]Goodbye![/cyan]\n")
                 break
 

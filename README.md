@@ -8,6 +8,7 @@ A Python command-line interface tool for managing Sophos Partner accounts using 
 - **List All Endpoints**: View all active endpoints across all tenants, including hostname, OS, and OS version
 - **Show Account Health**: Display health check scores for all tenants
 - **List All Firewalls**: View all firewalls across all tenants with detailed information
+- **List All Licenses**: View all licenses across all tenants with usage details
 - **Beautiful CLI Interface**: Clean, colorful output using the Rich library
 - **CSV Export**: Automatically export results to timestamped CSV files
 - **Pagination Support**: Automatically handles API pagination for large datasets
@@ -115,7 +116,13 @@ The CLI provides an interactive menu with the following options:
 - Exports data to `output/sophos_firewalls_YYYYMMDD_HHMMSS.csv`
 - Note: This may take a moment for accounts with many tenants/firewalls
 
-#### 5. Exit
+#### 5. List All Licenses
+- Retrieves all usage-based licenses across all tenants (only shows licenses with usage count > 0)
+- Shows: Tenant Name, Product, Product Code, Usage Count, Usage Date, and Start Date
+- Exports data to `output/sophos_licenses_YYYYMMDD_HHMMSS.csv`
+- Note: This may take a moment for accounts with many tenants
+
+#### 6. Exit
 - Closes the application
 
 ## Project Structure
@@ -144,6 +151,7 @@ This tool uses the following Sophos APIs:
 - **Endpoint API**: [Get Endpoints](https://developer.sophos.com/docs/endpoint-v1/1/routes/endpoints/get)
 - **Account Health Check API**: [Health Check](https://developer.sophos.com/account-health-check)
 - **Firewall API**: [Get Firewalls](https://developer.sophos.com/docs/firewall-v1/1/routes/firewalls/get)
+- **Licensing API**: [Get Licenses](https://developer.sophos.com/docs/licensing-v1/1/routes/licenses/get)
 
 ## Development
 
