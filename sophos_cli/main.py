@@ -199,13 +199,13 @@ def list_firewalls(client: SophosAPIClient):
 
         for firewall in firewalls_data:
             table.add_row(
-                firewall["tenant_name"],
-                firewall["firewall_name"],
-                firewall["firewall_hostname"],
-                firewall["firewall_model"],
-                firewall["firewall_status"],
-                firewall["firewall_serial"],
-                firewall["firewall_firmware"]
+                str(firewall["tenant_name"]),
+                str(firewall["firewall_name"]),
+                str(firewall["firewall_hostname"]),
+                str(firewall["firewall_model"]),
+                str(firewall["firewall_status"]),
+                str(firewall["firewall_serial"]),
+                str(firewall["firewall_firmware"])
             )
 
         # Display table

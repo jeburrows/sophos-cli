@@ -450,17 +450,19 @@ class SophosAPIClient:
                 firewalls = self.get_firewalls_for_tenant(tenant_id, api_host)
 
                 for firewall in firewalls:
-                    firmware = firewall.get("firmware", {})
+                    # Extract cluster/HA status
+                    cluster = firewall.get("cluster", {})
+                    ha_status = cluster.get("status", "N/A") if cluster else "N/A"
 
                     all_data.append({
                         "tenant_id": tenant_id,
                         "tenant_name": tenant_name,
                         "firewall_name": firewall.get("name", "N/A"),
-                        "firewall_hostname": firewall.get("hostName", "N/A"),
+                        "firewall_hostname": firewall.get("hostname", "N/A"),
                         "firewall_model": firewall.get("model", "N/A"),
-                        "firewall_status": firewall.get("status", "N/A"),
+                        "firewall_status": ha_status,
                         "firewall_serial": firewall.get("serialNumber", "N/A"),
-                        "firewall_firmware": firmware.get("version", "N/A")
+                        "firewall_firmware": firewall.get("firmwareVersion", "N/A")
                     })
             except Exception as e:
                 # Continue with other tenants if one fails
