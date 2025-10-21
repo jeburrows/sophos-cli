@@ -21,7 +21,8 @@ def display_menu():
 [1] List All Tenants
 [2] List All Endpoints
 [3] Show Account Health for All Tenants
-[4] Exit
+[4] List All Firewalls
+[5] Exit
 """
     console.print(Panel(menu_text, box=box.ROUNDED, border_style="cyan"))
 
@@ -174,6 +175,56 @@ def show_tenant_health(client: SophosAPIClient):
         console.print(f"[red]Error fetching tenant health: {e}[/red]")
 
 
+def list_firewalls(client: SophosAPIClient):
+    """Display all firewalls across all tenants and export to CSV"""
+    console.print("\n[yellow]Fetching firewalls from all tenants...[/yellow]")
+    console.print("[dim]This may take a moment...[/dim]\n")
+
+    try:
+        firewalls_data = client.get_all_firewalls()
+
+        if not firewalls_data:
+            console.print("[red]No firewalls found.[/red]")
+            return
+
+        # Create table for display
+        table = Table(title="Sophos Firewalls", box=box.ROUNDED)
+        table.add_column("Tenant Name", style="cyan", no_wrap=False)
+        table.add_column("Firewall Name", style="magenta", no_wrap=False)
+        table.add_column("Hostname", style="green", no_wrap=False)
+        table.add_column("Model", style="yellow", no_wrap=False)
+        table.add_column("Status", style="blue")
+        table.add_column("Serial Number", style="white", no_wrap=False)
+        table.add_column("Firmware", style="white", no_wrap=False)
+
+        for firewall in firewalls_data:
+            table.add_row(
+                firewall["tenant_name"],
+                firewall["firewall_name"],
+                firewall["firewall_hostname"],
+                firewall["firewall_model"],
+                firewall["firewall_status"],
+                firewall["firewall_serial"],
+                firewall["firewall_firmware"]
+            )
+
+        # Display table
+        console.print(table)
+        console.print(f"\n[green]Total firewalls: {len(firewalls_data)}[/green]")
+
+        # Export to CSV
+        csv_path = export_to_csv(
+            firewalls_data,
+            "sophos_firewalls",
+            ["tenant_name", "tenant_id", "firewall_name", "firewall_hostname",
+             "firewall_model", "firewall_status", "firewall_serial", "firewall_firmware"]
+        )
+        console.print(f"[green]Data exported to: {csv_path}[/green]\n")
+
+    except Exception as e:
+        console.print(f"[red]Error fetching firewalls: {e}[/red]")
+
+
 def main():
     """Main entry point for the CLI application"""
     console.print("\n[bold cyan]Welcome to Sophos Partner CLI[/bold cyan]\n")
@@ -200,8 +251,8 @@ def main():
             display_menu()
             choice = Prompt.ask(
                 "[bold]Select an option[/bold]",
-                choices=["1", "2", "3", "4"],
-                default="4"
+                choices=["1", "2", "3", "4", "5"],
+                default="5"
             )
 
             if choice == "1":
@@ -211,6 +262,8 @@ def main():
             elif choice == "3":
                 show_tenant_health(client)
             elif choice == "4":
+                list_firewalls(client)
+            elif choice == "5":
                 console.print("\n[cyan]Goodbye![/cyan]\n")
                 break
 

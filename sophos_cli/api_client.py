@@ -376,3 +376,98 @@ class SophosAPIClient:
         all_health_data.sort(key=lambda x: x.get("tenant_name", "").lower())
 
         return all_health_data
+
+    def get_firewalls_for_tenant(self, tenant_id: str, api_host: str) -> List[Dict]:
+        """
+        Get all firewalls for a specific tenant
+
+        Args:
+            tenant_id: The tenant ID
+            api_host: The API host URL for the tenant's region
+
+        Returns:
+            list: List of firewall dictionaries
+        """
+        if not self.access_token:
+            self.authenticate()
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "X-Tenant-ID": tenant_id
+        }
+
+        all_firewalls = []
+        page_from_key = None
+
+        while True:
+            params = {"pageSize": 100}
+            if page_from_key:
+                params["pageFromKey"] = page_from_key
+
+            response = requests.get(
+                f"{api_host}/firewall/v1/firewalls",
+                headers=headers,
+                params=params
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            firewalls = data.get("items", [])
+
+            if not firewalls:
+                break
+
+            all_firewalls.extend(firewalls)
+
+            # Check for next page
+            pages = data.get("pages", {})
+            page_from_key = pages.get("nextKey")
+
+            if not page_from_key:
+                break
+
+        return all_firewalls
+
+    def get_all_firewalls(self) -> List[Dict]:
+        """
+        Get all firewalls across all tenants
+
+        Returns:
+            list: List of dictionaries containing tenant info and firewall details
+        """
+        tenants = self.get_tenants()
+        all_data = []
+
+        for tenant in tenants:
+            tenant_id = tenant.get("id")
+            tenant_name = tenant.get("name")
+            api_host = tenant.get("apiHost")
+
+            if not tenant_id or not api_host:
+                continue
+
+            try:
+                firewalls = self.get_firewalls_for_tenant(tenant_id, api_host)
+
+                for firewall in firewalls:
+                    firmware = firewall.get("firmware", {})
+
+                    all_data.append({
+                        "tenant_id": tenant_id,
+                        "tenant_name": tenant_name,
+                        "firewall_name": firewall.get("name", "N/A"),
+                        "firewall_hostname": firewall.get("hostName", "N/A"),
+                        "firewall_model": firewall.get("model", "N/A"),
+                        "firewall_status": firewall.get("status", "N/A"),
+                        "firewall_serial": firewall.get("serialNumber", "N/A"),
+                        "firewall_firmware": firmware.get("version", "N/A")
+                    })
+            except Exception as e:
+                # Continue with other tenants if one fails
+                print(f"Warning: Failed to get firewalls for tenant {tenant_name}: {e}")
+                continue
+
+        # Sort by tenant name, then firewall name
+        all_data.sort(key=lambda x: (x.get("tenant_name", "").lower(), x.get("firewall_name", "").lower()))
+
+        return all_data

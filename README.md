@@ -6,6 +6,8 @@ A Python command-line interface tool for managing Sophos Partner accounts using 
 
 - **List All Tenants**: Display all tenants under your partner account with their details
 - **List All Endpoints**: View all active endpoints across all tenants, including hostname, OS, and OS version
+- **Show Account Health**: Display health check scores for all tenants
+- **List All Firewalls**: View all firewalls across all tenants with detailed information
 - **Beautiful CLI Interface**: Clean, colorful output using the Rich library
 - **CSV Export**: Automatically export results to timestamped CSV files
 - **Pagination Support**: Automatically handles API pagination for large datasets
@@ -107,7 +109,13 @@ The CLI provides an interactive menu with the following options:
 - Exports data to `output/sophos_tenant_health_YYYYMMDD_HHMMSS.csv`
 - Note: This may take a moment for accounts with many tenants
 
-#### 4. Exit
+#### 4. List All Firewalls
+- Retrieves all firewalls across all tenants
+- Shows: Tenant Name, Firewall Name, Hostname, Model, Status, Serial Number, and Firmware Version
+- Exports data to `output/sophos_firewalls_YYYYMMDD_HHMMSS.csv`
+- Note: This may take a moment for accounts with many tenants/firewalls
+
+#### 5. Exit
 - Closes the application
 
 ## Project Structure
@@ -135,6 +143,7 @@ This tool uses the following Sophos APIs:
 - **Partner API**: [Get Tenants](https://developer.sophos.com/docs/partner-v1/1/routes/tenants/get)
 - **Endpoint API**: [Get Endpoints](https://developer.sophos.com/docs/endpoint-v1/1/routes/endpoints/get)
 - **Account Health Check API**: [Health Check](https://developer.sophos.com/account-health-check)
+- **Firewall API**: [Get Firewalls](https://developer.sophos.com/docs/firewall-v1/1/routes/firewalls/get)
 
 ## Development
 
