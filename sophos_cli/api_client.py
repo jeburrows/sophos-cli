@@ -616,7 +616,7 @@ class SophosAPIClient:
         query = """
         query ($in: SearchRequestInput) {
           detectionSearch(in: $in) {
-            alerts { total_results list { id status metadata { title severity created_at { seconds } } } }
+            alerts { total_results list { id status metadata { title severity created_at { seconds } } source_entities { display_name subtype } } }
           }
         }"""
         cql = "from alert where status = 'OPEN' and severity >= 0.3 earliest=-7d"
@@ -631,9 +631,15 @@ class SophosAPIClient:
                     meta = d.get("metadata") or {}
                     seconds = (meta.get("created_at") or {}).get("seconds")
                     created = datetime.fromtimestamp(int(seconds), timezone.utc).strftime("%Y-%m-%d") if seconds else "N/A"
+                    entities = d.get("source_entities") or []
+                    # Unique display names per entity subtype, in order seen
+                    def names(subtype):
+                        return ", ".join(dict.fromkeys(e["display_name"] for e in entities if e.get("subtype") == subtype)) or "N/A"
                     rows.append({
                         "tenant_id": tenant["id"],
                         "tenant_name": tenant["name"],
+                        "detection_device": names("Endpoint"),
+                        "detection_user": names("User"),
                         "detection_id": d.get("id", "N/A"),
                         "detection_title": meta.get("title", "N/A"),
                         "detection_severity": meta.get("severity", "N/A"),

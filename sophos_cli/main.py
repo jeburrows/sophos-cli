@@ -304,7 +304,7 @@ def _list_generic(title, fetch, columns, csv_name, noun):
 def list_detections(client: SophosAPIClient):
     _list_generic("Open Detections (Severity >= 0.3, Last 7 Days)", client.get_all_detections,
                   [("Tenant Name", "tenant_name"), ("Title", "detection_title"), ("Severity", "detection_severity"),
-                   ("Status", "detection_status"), ("Created", "detection_created"), ("ID", "detection_id")],
+                   ("Status", "detection_status"), ("Device", "detection_device"), ("User", "detection_user"), ("Created", "detection_created")],
                   "sophos_detections", "detections")
 
 

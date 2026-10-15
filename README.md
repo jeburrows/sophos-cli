@@ -127,7 +127,7 @@ The CLI provides an interactive menu with the following options:
 
 #### 6. List Open Detections (High Severity, 7 days)
 - Retrieves open detections from the last 7 days with severity >= 0.3 (scale is 0-1) via the Detections GraphQL API
-- Shows: Tenant Name, Title, Severity, Status, Created, and ID
+- Shows: Tenant Name, Title, Severity, Status, Device, User, and Created
 - Exports data to `output/sophos_detections_YYYYMMDD_HHMMSS.csv`
 - To change the threshold, edit the `cql` query in `get_all_detections` in `sophos_cli/api_client.py`
 
