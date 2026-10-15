@@ -23,7 +23,10 @@ def display_menu():
 [3] Show Account Health for All Tenants
 [4] List All Firewalls
 [5] List All Licenses
-[6] Exit
+[6] List Open Detections (High Severity, 7 days)
+[7] List Open Cases
+[8] List DNS Protection Locations
+[9] Exit
 """
     console.print(Panel(menu_text, box=box.ROUNDED, border_style="cyan"))
 
@@ -276,6 +279,49 @@ def list_licenses(client: SophosAPIClient):
         console.print(f"[red]Error fetching licenses: {e}[/red]")
 
 
+def _list_generic(title, fetch, columns, csv_name, noun):
+    """Fetch rows across tenants, show a table, and export to CSV"""
+    console.print(f"\n[yellow]Fetching {noun} from all tenants...[/yellow]")
+    console.print("[dim]This may take a moment...[/dim]\n")
+    try:
+        rows = fetch()
+        if not rows:
+            console.print(f"[red]No {noun} found.[/red]")
+            return
+        table = Table(title=title, box=box.ROUNDED)
+        for header, key in columns:
+            table.add_column(header, no_wrap=False)
+        for r in rows:
+            table.add_row(*(str(r[key]) for _, key in columns))
+        console.print(table)
+        console.print(f"\n[green]Total {noun}: {len(rows)}[/green]")
+        csv_path = export_to_csv(rows, csv_name, ["tenant_name", "tenant_id"] + [k for _, k in columns if k != "tenant_name"])
+        console.print(f"[green]Data exported to: {csv_path}[/green]\n")
+    except Exception as e:
+        console.print(f"[red]Error fetching {noun}: {e}[/red]")
+
+
+def list_detections(client: SophosAPIClient):
+    _list_generic("Open Detections (Severity >= 0.3, Last 7 Days)", client.get_all_detections,
+                  [("Tenant Name", "tenant_name"), ("Title", "detection_title"), ("Severity", "detection_severity"),
+                   ("Status", "detection_status"), ("Created", "detection_created"), ("ID", "detection_id")],
+                  "sophos_detections", "detections")
+
+
+def list_cases(client: SophosAPIClient):
+    _list_generic("Open Cases", client.get_all_cases,
+                  [("Tenant Name", "tenant_name"), ("Case ID", "case_id"), ("Title", "case_title"),
+                   ("Severity", "case_severity"), ("Status", "case_status"), ("Created", "case_created")],
+                  "sophos_cases", "cases")
+
+
+def list_dns_locations(client: SophosAPIClient):
+    _list_generic("DNS Protection Locations", client.get_all_dns_locations,
+                  [("Tenant Name", "tenant_name"), ("Location", "location_name"), ("Policy", "location_policy"),
+                   ("Default", "location_default"), ("DoH", "location_doh"), ("IP Addresses", "location_ips")],
+                  "sophos_dns_locations", "DNS locations")
+
+
 def main():
     """Main entry point for the CLI application"""
     console.print("\n[bold cyan]Welcome to Sophos Partner CLI[/bold cyan]\n")
@@ -302,8 +348,8 @@ def main():
             display_menu()
             choice = Prompt.ask(
                 "[bold]Select an option[/bold]",
-                choices=["1", "2", "3", "4", "5", "6"],
-                default="6"
+                choices=[str(i) for i in range(1, 10)],
+                default="9"
             )
 
             if choice == "1":
@@ -317,6 +363,12 @@ def main():
             elif choice == "5":
                 list_licenses(client)
             elif choice == "6":
+                list_detections(client)
+            elif choice == "7":
+                list_cases(client)
+            elif choice == "8":
+                list_dns_locations(client)
+            elif choice == "9":
                 console.print("\n[cyan]Goodbye![/cyan]\n")
                 break
 

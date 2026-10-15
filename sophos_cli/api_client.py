@@ -1,6 +1,7 @@
 """Sophos API Client for Partner and Endpoint APIs"""
 
 import os
+from datetime import datetime, timezone
 import requests
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
@@ -568,3 +569,153 @@ class SophosAPIClient:
         all_data.sort(key=lambda x: (x.get("tenant_name", "").lower(), x.get("license_product", "").lower()))
 
         return all_data
+
+    GRAPHQL_URL = "https://api.taegis.sophos.com/graphql"
+
+    def _graphql(self, tenant_id: str, query: str, variables: Dict) -> Dict:
+        """Run a read-only GraphQL query for a tenant and return its data"""
+        if not self.access_token:
+            self.authenticate()
+
+        response = requests.post(
+            self.GRAPHQL_URL,
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "X-Tenant-ID": tenant_id,
+            },
+            json={"query": query, "variables": variables},
+        )
+        response.raise_for_status()
+
+        body = response.json()
+        # GraphQL errors come back as HTTP 200 with an "errors" array
+        if body.get("errors"):
+            raise RuntimeError(body["errors"][0].get("message", "GraphQL error"))
+        return body["data"]
+
+    def _for_each_tenant(self, label: str, fetch) -> List[Dict]:
+        """Call fetch(tenant) for every tenant, skipping tenants that fail"""
+        rows = []
+        for tenant in self.get_tenants():
+            if not tenant.get("id") or not tenant.get("apiHost"):
+                continue
+            try:
+                rows.extend(fetch(tenant))
+            except Exception as e:
+                print(f"Warning: Failed to get {label} for tenant {tenant.get('name')}: {e}")
+        rows.sort(key=lambda x: x["tenant_name"].lower())
+        return rows
+
+    @staticmethod
+    def _date(value) -> str:
+        """Date portion of an ISO timestamp, or N/A"""
+        return value.split("T")[0] if value else "N/A"
+
+    def get_all_detections(self) -> List[Dict]:
+        """Get open detections (severity >= 0.3) from the last 7 days across all tenants"""
+        query = """
+        query ($in: SearchRequestInput) {
+          detectionSearch(in: $in) {
+            alerts { total_results list { id status metadata { title severity created_at { seconds } } } }
+          }
+        }"""
+        cql = "from alert where status = 'OPEN' and severity >= 0.3 earliest=-7d"
+
+        def fetch(tenant):
+            rows, offset = [], 0
+            while True:
+                data = self._graphql(tenant["id"], query, {"in": {"cql_query": cql, "offset": offset, "limit": 500}})
+                alerts = data["detectionSearch"]["alerts"]
+                items = alerts.get("list") or []
+                for d in items:
+                    meta = d.get("metadata") or {}
+                    seconds = (meta.get("created_at") or {}).get("seconds")
+                    created = datetime.fromtimestamp(int(seconds), timezone.utc).strftime("%Y-%m-%d") if seconds else "N/A"
+                    rows.append({
+                        "tenant_id": tenant["id"],
+                        "tenant_name": tenant["name"],
+                        "detection_id": d.get("id", "N/A"),
+                        "detection_title": meta.get("title", "N/A"),
+                        "detection_severity": meta.get("severity", "N/A"),
+                        "detection_status": d.get("status", "N/A"),
+                        "detection_created": created,
+                    })
+                offset += len(items)
+                # ponytail: offset paging caps at 10,000; use detectionPoll/search_id if a tenant exceeds it
+                if not items or offset >= alerts.get("total_results", 0):
+                    return rows
+
+        return self._for_each_tenant("detections", fetch)
+
+    def get_all_cases(self) -> List[Dict]:
+        """Get open (not closed) cases across all tenants"""
+        query = """
+        query ($arguments: CasesArguments!) {
+          cases(arguments: $arguments) {
+            totalCount
+            cases { shortId title severity primaryStatus { name } createdAt closedAt }
+          }
+        }"""
+
+        def fetch(tenant):
+            rows, page = [], 1
+            while True:
+                args = {"pagination": {"offset": {"page": page, "perPage": 100}}}
+                data = self._graphql(tenant["id"], query, {"arguments": args})["cases"]
+                cases = data.get("cases") or []
+                for c in cases:
+                    if c.get("closedAt"):
+                        continue
+                    rows.append({
+                        "tenant_id": tenant["id"],
+                        "tenant_name": tenant["name"],
+                        "case_id": c.get("shortId", "N/A"),
+                        "case_title": c.get("title", "N/A"),
+                        "case_severity": c.get("severity", "N/A"),
+                        "case_status": (c.get("primaryStatus") or {}).get("name", "N/A"),
+                        "case_created": self._date(c.get("createdAt")),
+                    })
+                if not cases or page * 100 >= data.get("totalCount", 0):
+                    return rows
+                page += 1
+
+        return self._for_each_tenant("cases", fetch)
+
+    def get_all_dns_locations(self) -> List[Dict]:
+        """Get DNS Protection locations with policy names across all tenants (read-only GET)"""
+        def fetch(tenant):
+            headers = {"Authorization": f"Bearer {self.access_token}", "X-Tenant-ID": tenant["id"]}
+
+            def get_items(path):
+                items, page = [], 1
+                while True:
+                    response = requests.get(
+                        f"{tenant['apiHost']}/dns-protection/v2/{path}",
+                        headers=headers,
+                        params={"page": page, "pageSize": 200, "pageTotal": "true"},
+                    )
+                    # 403 = tenant has no DNS Protection; skip quietly
+                    if response.status_code == 403:
+                        return []
+                    response.raise_for_status()
+                    data = response.json()
+                    items.extend(data.get("items", []))
+                    if page >= data.get("pages", {}).get("total", 1):
+                        return items
+                    page += 1
+
+            locations = get_items("locations")
+            policies = {p["id"]: p.get("name", "N/A") for p in get_items("policies")} if locations else {}
+            return [{
+                "tenant_id": tenant["id"],
+                "tenant_name": tenant["name"],
+                "location_name": loc.get("name", "N/A"),
+                "location_policy": policies.get(loc.get("policyId"), "None"),
+                "location_default": "Yes" if loc.get("isDefault") else "No",
+                "location_doh": "Yes" if loc.get("dohEnabled") else "No",
+                "location_ips": ", ".join(loc.get("ipAddresses") or []) or "N/A",
+            } for loc in locations]
+
+        if not self.access_token:
+            self.authenticate()
+        return self._for_each_tenant("DNS locations", fetch)

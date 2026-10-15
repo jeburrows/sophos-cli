@@ -9,6 +9,9 @@ A Python command-line interface tool for managing Sophos Partner accounts using 
 - **Show Account Health**: Display health check scores for all tenants
 - **List All Firewalls**: View all firewalls across all tenants with detailed information
 - **List All Licenses**: View all licenses across all tenants with usage details
+- **List Open Detections**: View open detections (severity 0.3+, last 7 days) across all tenants
+- **List Open Cases**: View open cases across all tenants
+- **List DNS Protection Locations**: View DNS Protection locations and assigned policies across all tenants
 - **Beautiful CLI Interface**: Clean, colorful output using the Rich library
 - **CSV Export**: Automatically export results to timestamped CSV files
 - **Pagination Support**: Automatically handles API pagination for large datasets
@@ -122,7 +125,24 @@ The CLI provides an interactive menu with the following options:
 - Exports data to `output/sophos_licenses_YYYYMMDD_HHMMSS.csv`
 - Note: This may take a moment for accounts with many tenants
 
-#### 6. Exit
+#### 6. List Open Detections (High Severity, 7 days)
+- Retrieves open detections from the last 7 days with severity >= 0.3 (scale is 0-1) via the Detections GraphQL API
+- Shows: Tenant Name, Title, Severity, Status, Created, and ID
+- Exports data to `output/sophos_detections_YYYYMMDD_HHMMSS.csv`
+- To change the threshold, edit the `cql` query in `get_all_detections` in `sophos_cli/api_client.py`
+
+#### 7. List Open Cases
+- Retrieves cases that are not closed via the Cases GraphQL API
+- Shows: Tenant Name, Case ID, Title, Severity, Status, and Created
+- Exports data to `output/sophos_cases_YYYYMMDD_HHMMSS.csv`
+
+#### 8. List DNS Protection Locations
+- Retrieves DNS Protection locations and their assigned policy name (read-only)
+- Shows: Tenant Name, Location, Policy, Default, DoH, and IP Addresses
+- Tenants without DNS Protection (HTTP 403) are skipped silently
+- Exports data to `output/sophos_dns_locations_YYYYMMDD_HHMMSS.csv`
+
+#### 9. Exit
 - Closes the application
 
 ## Project Structure
@@ -152,6 +172,9 @@ This tool uses the following Sophos APIs:
 - **Account Health Check API**: [Health Check](https://developer.sophos.com/account-health-check)
 - **Firewall API**: [Get Firewalls](https://developer.sophos.com/docs/firewall-v1/1/routes/firewalls/get)
 - **Licensing API**: [Get Licenses](https://developer.sophos.com/docs/licensing-v1/1/routes/licenses/get)
+- **Detections GraphQL API**: [Guide](https://developer.sophos.com/detections-graphql)
+- **Cases GraphQL API**: [Guide](https://developer.sophos.com/cases-graphql)
+- **DNS Protection API**: [Guide](https://developer.sophos.com/dns-protection)
 
 ## Development
 
