@@ -295,7 +295,9 @@ def _list_generic(title, fetch, columns, csv_name, noun):
             table.add_row(*(str(r[key]) for _, key in columns))
         console.print(table)
         console.print(f"\n[green]Total {noun}: {len(rows)}[/green]")
-        csv_path = export_to_csv(rows, csv_name, ["tenant_name", "tenant_id"] + [k for _, k in columns if k != "tenant_name"])
+        # Shown columns first, then any remaining row fields (e.g. IDs) so nothing is dropped
+        fields = list(dict.fromkeys(["tenant_name", "tenant_id"] + [k for _, k in columns] + list(rows[0])))
+        csv_path = export_to_csv(rows, csv_name, fields)
         console.print(f"[green]Data exported to: {csv_path}[/green]\n")
     except Exception as e:
         console.print(f"[red]Error fetching {noun}: {e}[/red]")
